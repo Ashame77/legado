@@ -467,7 +467,6 @@ class BgTextConfigDialog : BaseDialogFragment(0) {
                     iconRes = R.drawable.ic_clear_all,
                     style = style,
                     modifier = Modifier.weight(1f),
-                    danger = true,
                     onClick = ::deleteCurrentConfig
                 )
             }
@@ -480,13 +479,12 @@ class BgTextConfigDialog : BaseDialogFragment(0) {
         iconRes: Int,
         style: AppDialogStyle,
         modifier: Modifier = Modifier,
-        danger: Boolean = false,
         onClick: () -> Unit
     ) {
-        // 三个操作按钮共用完全相同的容器样式（底色、圆角、阴影、最小高度、内边距）。
-        // 原先 danger 分支把半透明红用作 Surface 底色，叠加 elevation 后会呈现出
-        // 一圈深色粗框和偏暗底色，与「导入 / 导出」的浅色卡片明显不一致。
-        // 危险语义改由图标与文字颜色承担，不再改变按钮本身的样式。
+        // 导入 / 导出 / 删除 三个操作按钮使用完全一致的样式：容器底色、圆角、
+        // 阴影、最小高度、内边距，以及图标与文字颜色。原先「删除」按钮既把半透明
+        // 红用作 Surface 底色（叠加 elevation 后呈深色粗框），又把图标和文字染红，
+        // 与另外两个按钮明显不一致，现统一为 style.primaryText。
         Surface(
             onClick = onClick,
             modifier = modifier.heightIn(min = 42.dp),
@@ -504,13 +502,13 @@ class BgTextConfigDialog : BaseDialogFragment(0) {
                 Icon(
                     painter = painterResource(iconRes),
                     contentDescription = text,
-                    tint = if (danger) style.danger else style.primaryText,
+                    tint = style.primaryText,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = text,
-                    color = if (danger) style.danger else style.primaryText,
+                    color = style.primaryText,
                     fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
