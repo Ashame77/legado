@@ -1,70 +1,44 @@
-name: Build Debug APK (免签名)
+name: Build Debug APK
 
-# =============================================================================
-# 零配置构建：不需要任何 Secret、不需要 keystore、不需要 CHANGELOG.md
-#
-# 放到 .github/workflows/build-apk.yml，到 Actions 页面点 Run workflow 即可，
-# 产物在 Artifact 里，下载后可直接 adb install 到手机。
-#
-# 原理：assembleDebug 会自动使用 Android SDK 自带的 debug.keystore 签名，
-#       这个密钥由 Gradle/SDK 自动创建，无需（也不应该）自己提供。
-# =============================================================================
 on:
   workflow_dispatch:
-    inputs:
-      task:
-        description: '构建任务'
-        type: choice
-        default: 'assembleDebug'
-        options:
-          - assembleDebug
-          - assembleRelease
-
-permissions:
-  contents: read            # 不建 Release，只需要读代码
-
-env:
-  APP_MODULE: app
-  APK_OUTPUT_DIR: apk
 
 jobs:
   build:
+    strategy:
+      matrix:
+        include:
+          - product: app
+            task: assembleAppDebug
+          - product: google
+            task: assembleGoogleDebug
+      fail-fast: false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v5
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: '17'
+          distribution: 'temurin'
+          java-version: 17
 
-      - uses: gradle/actions/setup-gradle@v5
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
 
-      - name: 构建 APK
+      - name: Build With Gradle
         run: |
+          echo "开始进行 ${{ matrix.product }} debug 构建"
           chmod +x gradlew
-          ./gradlew "${{ inputs.task || 'assembleDebug' }}" \
-            --build-cache --parallel --no-daemon --warning-mode all
+          ./gradlew ${{ matrix.task }} --build-cache --parallel --daemon --warning-mode all
 
-      - name: 收集产物
+      - name: Collect APK
         run: |
-          src="$GITHUB_WORKSPACE/$APP_MODULE/build/outputs/apk"
-          [ -d "$src" ] || { echo "::error::找不到 APK 输出目录 $src"; exit 1; }
-          mkdir -p "$APK_OUTPUT_DIR"
-          find "$src" -type f -name '*.apk' -exec cp -f {} "$APK_OUTPUT_DIR/" \;
-          count=$(find "$APK_OUTPUT_DIR" -maxdepth 1 -name '*.apk' | wc -l | tr -d ' ')
-          [ "$count" -gt 0 ] || { echo "::error::没有生成 APK"; exit 1; }
-          ls -lh "$APK_OUTPUT_DIR"
-          # assembleRelease 在没有 signingConfig 时会产出 unsigned 包，装不了
-          if ls "$APK_OUTPUT_DIR"/*-unsigned.apk >/dev/null 2>&1; then
-            echo "::warning::检测到未签名 APK：Android 拒绝安装，只能用于后续再签名。"
-            echo "::warning::想要能直接安装的包，请改用 assembleDebug，"
-            echo "::warning::或在 build.gradle 的 release 里加一行 signingConfig signingConfigs.debug"
-          fi
+          mkdir -p ${{ github.workspace }}/apk/
+          cp -rf ${{ github.workspace }}/app/build/outputs/apk/*/*/*.apk ${{ github.workspace }}/apk/
 
-      - uses: actions/upload-artifact@v7
+      - name: Upload App To Artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: apk-${{ inputs.task || 'assembleDebug' }}
-          path: ${{ env.APK_OUTPUT_DIR }}/*.apk
-          if-no-files-found: error
-          retention-days: 30
+          name: legado_${{ matrix.product }}_debug
+          path: ${{ github.workspace }}/apk/*.apk
