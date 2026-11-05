@@ -483,12 +483,16 @@ class BgTextConfigDialog : BaseDialogFragment(0) {
         danger: Boolean = false,
         onClick: () -> Unit
     ) {
+        // 三个操作按钮共用完全相同的容器样式（底色、圆角、阴影、最小高度、内边距）。
+        // 原先 danger 分支把半透明红用作 Surface 底色，叠加 elevation 后会呈现出
+        // 一圈深色粗框和偏暗底色，与「导入 / 导出」的浅色卡片明显不一致。
+        // 危险语义改由图标与文字颜色承担，不再改变按钮本身的样式。
         Surface(
             onClick = onClick,
             modifier = modifier.heightIn(min = 42.dp),
             shape = RoundedCornerShape(style.actionRadius),
-            color = if (danger) style.danger.copy(alpha = 0.11f) else style.fieldSurface,
-            contentColor = if (danger) style.danger else style.primaryText,
+            color = style.fieldSurface,
+            contentColor = style.primaryText,
             tonalElevation = 0.dp,
             shadowElevation = 1.dp
         ) {
