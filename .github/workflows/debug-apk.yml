@@ -77,12 +77,15 @@ jobs:
         if: ${{ inputs.enable_swap }}
         shell: bash
         run: |
-          sudo swapoff -a || true
-          sudo fallocate -l 6G /mnt/swapfile
-          sudo chmod 600 /mnt/swapfile
-          sudo mkswap /mnt/swapfile
-          sudo swapon /mnt/swapfile
+          # 只追加一块 swap，不动 runner 自带的 swap（swapoff -a 会关掉系统已有交换空间）
+          if [ ! -f /mnt/swapfile ]; then
+            sudo fallocate -l 6G /mnt/swapfile
+            sudo chmod 600 /mnt/swapfile
+            sudo mkswap /mnt/swapfile
+            sudo swapon /mnt/swapfile
+          fi
           free -h
+          swapon --show
 
       - name: 配置 JDK 17
         uses: actions/setup-java@v4
@@ -216,9 +219,13 @@ jobs:
         run: |
           OUT="${RUNNER_TEMP}/diagnostics"
           mkdir -p "$OUT"
-          cp -r app/build/reports "$OUT/" 2>/dev/null || true
-          find "$HOME/.gradle/daemon" -name '*.log' -type f \
-            -exec cp {} "$OUT/" \; 2>/dev/null || true
+          # 根项目的 Problems report 与 app 的各类报告位于不同目录，都要收
+          cp -r build/reports "$OUT/root-reports" 2>/dev/null || true
+          cp -r app/build/reports "$OUT/app-reports" 2>/dev/null || true
+          # Kotlin daemon 才是 OOM 发生地，它的日志在 ~/.gradle/kotlin/daemon
+          mkdir -p "$OUT/gradle-logs"
+          cp -r "$HOME/.gradle/daemon" "$OUT/gradle-logs/daemon" 2>/dev/null || true
+          cp -r "$HOME/.gradle/kotlin/daemon" "$OUT/gradle-logs/kotlin-daemon" 2>/dev/null || true
           {
             echo "run_id=${{ github.run_id }}"
             echo "ref=${{ github.ref }}"
@@ -241,4 +248,3 @@ jobs:
           path: ${{ runner.temp }}/diagnostics/
           retention-days: 7
           if-no-files-found: warn
-  
