@@ -6,6 +6,7 @@
 # 这个 -Xmx。编译超大 Composable（WorldBookEntryEditor）时 Kotlin 后端内存会爆，
 # 因此本工作流在 CI 里重分配：Gradle daemon 2g + Kotlin daemon 独立堆（默认 4g）。
 name: Debug APK
+run-name: 构建Debug APK
 
 on:
   push:
